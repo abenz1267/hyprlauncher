@@ -25,12 +25,16 @@ impl App {
         log!("Initializing application runtime...");
         let rt = Runtime::new().expect("Failed to create Tokio runtime");
 
+        let app = Application::builder()
+            .application_id("hyprutils.hyprlauncher")
+            .flags(
+                gtk4::gio::ApplicationFlags::ALLOW_REPLACEMENT
+                    | gtk4::gio::ApplicationFlags::HANDLES_COMMAND_LINE,
+            )
+            .build();
+
         if !Self::can_create_instance() {
             log!("Another instance is already running, exiting");
-            let app = Application::builder()
-                .application_id("hyprutils.hyprlauncher")
-                .flags(gtk4::gio::ApplicationFlags::ALLOW_REPLACEMENT)
-                .build();
 
             app.register(None::<&gtk4::gio::Cancellable>)
                 .expect("Failed to register application");
@@ -40,13 +44,6 @@ impl App {
         }
 
         log!("Creating new application instance");
-        let app = Application::builder()
-            .application_id("hyprutils.hyprlauncher")
-            .flags(gtk4::gio::ApplicationFlags::ALLOW_REPLACEMENT)
-            .build();
-
-        app.register(None::<&gtk4::gio::Cancellable>)
-            .expect("Failed to register application");
 
         let (tx, rx) = mpsc::channel();
         crate::config::Config::watch_changes(move || {
@@ -98,6 +95,11 @@ impl App {
 
     pub fn run(&self) -> i32 {
         let rt_handle = self.rt.handle().clone();
+        self.app.connect_command_line(|app, _command_line| {
+            println!("handling cmd line");
+            app.activate();
+            0
+        });
 
         self.app.connect_activate(move |app| {
             let windows = app.windows();
